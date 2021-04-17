@@ -1,5 +1,5 @@
-#include "pch.h"
 #include "ChallengeRandomizer.h"
+#include <iostream>
 
 // Modify an opcode to use RNG2 instead of main RNG
 void ChallengeRandomizer::AdjustRng(int offset) {

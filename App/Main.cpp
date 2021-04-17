@@ -1,14 +1,18 @@
-#include "pch.h"
+#include "Windows.h"
 #include "Richedit.h"
 #include "Version.h"
+
+#include <cassert>
+#include <iostream>
+#include <string>
+#include <thread>
 
 #include "Memory.h"
 #include "Random.h"
 #include "Randomizer.h"
 #include "Randomizer2.h"
-#include "Panels_.h"
 
-#define HEARTBEAT 0x401
+// Heartbeat is defined to 0x401 by Memory.h
 #define RANDOMIZE_READY 0x402
 #define RANDOMIZING 0403
 #define RANDOMIZE_DONE 0x404
@@ -18,10 +22,10 @@
 #define SPEED_UP_AUTOSCROLLERS 0x408
 
 /* ------- Temp ------- */
+#include "Puzzle.h"
 #include "Solver.h"
 #include "PuzzleSerializer.h"
 #include <sstream>
-#include <iomanip>
 
 #define TMP1 0x501
 #define TMP2 0x502
@@ -96,18 +100,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 SetRandomSeed();
                 std::thread([]{
                     if (IsDlgButtonChecked(g_hwnd, DISABLE_SNIPES)) {
-                        MEMORY_CATCH(g_randomizer->PreventSnipes());
+                        g_randomizer->PreventSnipes();
                     }
                     if (IsDlgButtonChecked(g_hwnd, SPEED_UP_AUTOSCROLLERS)) {
-                        MEMORY_CATCH(g_randomizer->AdjustSpeed());
+                        g_randomizer->AdjustSpeed();
                     }
                     if (IsDlgButtonChecked(g_hwnd, CHALLENGE_ONLY)) {
                         SetWindowText(g_randomizerStatus, L"Randomizing Challenge...");
-                        MEMORY_CATCH(g_randomizer->RandomizeChallenge());
+                        g_randomizer->RandomizeChallenge();
                         PostMessage(g_hwnd, WM_COMMAND, RANDOMIZE_CHALLENGE_DONE, NULL);
                     } else {
                         SetWindowText(g_randomizerStatus, L"Randomizing...");
-                        MEMORY_CATCH(g_randomizer->Randomize());
+                        g_randomizer->Randomize();
                         PostMessage(g_hwnd, WM_COMMAND, RANDOMIZE_DONE, NULL);
                     }
                 }).detach();
@@ -162,29 +166,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 }
                 break;
             case TMP3:
-                {
-                    for (auto [key, value] : PANELS) {
-                        std::stringstream out;
-                        std::string name(value);
-                        out << "  {'id': 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(5) << key << ", 'area':'";
-                        int k;  
-                        for (k=0; name[k] != ' '; k++) out << name[k];
-                        if (name[k+2] == ' ') {
-                            out << name[k] << name[k+1];
-                            k += 2;
-                        }
-                        out << "', 'name':'";
-                        k++;
-                        for (k; k < name.size(); k++) out << name[k];
-                        out << "', 'data':'";
-                        auto puzzle = PuzzleSerializer(g_witnessProc).ReadPuzzle(key);
-                        out << puzzle.Serialize();
-                        out << "'},\r\n";
-                        DebugPrint(out.str());
-                    }
-                }
-
-                // Solver::Solve(g_puzzle);
+                Solver::Solve(g_puzzle);
                 break;
             case TMP4:
                 SetRandomSeed();
@@ -212,13 +194,8 @@ void SetRandomSeed() {
         Random::SetSeed(_wtoi(text.c_str()));
     } else { // Random seed
         int seed = Random::RandInt(0, 999999);
-
-        text = std::to_wstring(seed);
-        SetWindowText(g_seed, text.c_str());
-        CHARRANGE range = {0, static_cast<long>(text.length())};
-        PostMessage(g_seed, EM_EXSETSEL, NULL, (LPARAM)&range);
-        SetFocus(g_seed);
-
+        SetWindowText(g_seed, std::to_wstring(seed).c_str());
+        RedrawWindow(g_seed, NULL, NULL, RDW_UPDATENOW);
 		Random::SetSeed(seed);
     }
 }
@@ -298,7 +275,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     CreateButton(200, 220, 100, L"Randomize2", TMP4);
 #endif
 
-    g_witnessProc->StartHeartbeat(g_hwnd, HEARTBEAT);
+    g_witnessProc->StartHeartbeat(g_hwnd);
 
 	ShowWindow(g_hwnd, nCmdShow);
 	UpdateWindow(g_hwnd);

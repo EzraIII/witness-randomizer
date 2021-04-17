@@ -1,5 +1,5 @@
-#include "pch.h"
 #include "Validator.h"
+#include "Puzzle.h"
 
 void Validator::Validate(Puzzle& p) {
     // console.log('Validating', puzzle);
@@ -10,11 +10,11 @@ void Validator::Validate(Puzzle& p) {
     bool puzzleHasSymbols = false;
     bool puzzleHasStart = false;
     bool puzzleHasEnd = false;
-    // Validate gap failures as an early exit.
+  // Validate gap failures as an early exit.
     for (int x = 0; x < p.width; x++) {
         for (int y = 0; y < p.height; y++) {
-            const Cell& cell = p.grid[x][y];
-            const auto& decoration = cell.decoration;
+            Cell cell = p.grid[x][y];
+            auto decoration = cell.decoration;
             if (decoration) {
                 if (decoration->type == Type::Stone ||
                     decoration->type == Type::Star ||

@@ -1,6 +1,10 @@
-#include "pch.h"
 #include "Randomizer2Core.h"
+#include "Puzzle.h"
 #include "Random.h"
+
+#include <string>
+#include <iostream>
+#include <cassert>
 
 std::vector<Pos> Randomizer2Core::CutEdges(const Puzzle& p, size_t numEdges) {
     return CutEdgesInternal(p, 0, p.width, 0, p.height, numEdges);
@@ -12,33 +16,18 @@ std::vector<Pos> Randomizer2Core::CutInsideEdges(const Puzzle& p, size_t numEdge
 
 std::vector<Pos> Randomizer2Core::CutSymmetricalEdgePairs(const Puzzle& p, size_t numEdges) {
     Puzzle copy = p;
-    // Prevent cuts from landing on the midline
+    assert(p.symmetry != Puzzle::Symmetry::NONE);
     if (p.symmetry == Puzzle::Symmetry::X) {
-        for (int y=0; y<p.height; y++) {
-            copy.grid[p.width/2][y].gap = Cell::Gap::FULL;
+        if (p.width%4 == 1) { // Puzzle is even, so we need to prevent cutting the centerline
+            for (int y=0; y<p.height; y++) {
+                copy.grid[p.width/2][y].gap = Cell::Gap::FULL;
+            }
         }
+
         return CutEdgesInternal(copy, 0, (p.width-1)/2, 0, p.height, numEdges);
-    } else if (p.symmetry == Puzzle::Symmetry::Y) {
-        for (int x=0; x<p.width; x++) {
-            copy.grid[x][p.height/2].gap = Cell::Gap::FULL;
-        }
-        return CutEdgesInternal(copy, 0, p.width, 0, (p.height-1)/2, numEdges);
-    } else {
-        assert(p.symmetry == Puzzle::Symmetry::XY);
-        int midX = p.width/2;
-        int midY = p.height/2;
-        if (p.width%4 == 1 && p.height%4 == 1) { // For double-even grids, cut around the center
-            copy.grid[midX-1][midY].gap = Cell::Gap::FULL;
-            copy.grid[midX][midY-1].gap = Cell::Gap::FULL;
-            copy.grid[midX][midY+1].gap = Cell::Gap::FULL;
-            copy.grid[midX+1][midY].gap = Cell::Gap::FULL;
-        } else if (p.width%4 == 1 && p.height%4 == 3) { // For half-even grids, there's only one line to cut
-            copy.grid[midX][midY].gap = Cell::Gap::FULL;
-        } else if (p.width%4 == 3 && p.height%4 == 1) { // For half-even grids, there's only one line to cut
-            copy.grid[midX][midY].gap = Cell::Gap::FULL;
-        }
-        return CutEdgesInternal(copy, 0, p.width, 0, p.height, numEdges);
     }
+    assert(false);
+    return {};
 }
 
 std::vector<Pos> Randomizer2Core::CutEdgesInternal(const Puzzle& p, int xMin, int xMax, int yMin, int yMax, size_t numEdges) {
@@ -49,11 +38,6 @@ std::vector<Pos> Randomizer2Core::CutEdgesInternal(const Puzzle& p, int xMin, in
             if (p.grid[x][y].gap != Cell::Gap::NONE) continue;
             if (p.grid[x][y].start) continue;
             if (p.grid[x][y].end != Cell::Dir::NONE) continue;
-
-            if (p.symmetry == Puzzle::Symmetry::XY) {
-                assert(p.width == p.height); // TODO: This solution only supports square rotational symmetry.
-                if (x > y) continue; // Only allow cuts bottom-left of the diagonal
-            }
 
             // If the puzzle already has a sequence, don't cut along it.
             bool inSequence = false;
@@ -67,19 +51,9 @@ std::vector<Pos> Randomizer2Core::CutEdgesInternal(const Puzzle& p, int xMin, in
     auto [colorGrid, numColors] = CreateColorGrid(p);
     assert(numEdges <= numColors);
 
-    // @Hack... sort of. I couldn't think of a better way to do this.
-    if (p.symmetry == Puzzle::Symmetry::XY) {
-        // Recolor the diagonal so that opposite cells share a color. This is because we're only cutting along half their edges,
-        // so they are in fact two sides of the same cell.
-        for (int x=1; x<p.width/2; x+=2) {
-            assert(p.width == p.height); // TODO: This solution only supports square rotational symmetry.
-            colorGrid[x][x] = colorGrid[p.width-x-1][p.width-x-1];
-        }
-    }
-
     std::vector<Pos> cutEdges;
     for (int i=0; i<numEdges; i++) {
-        while (edges.size() > 0) {
+        for (int j=0; j<edges.size(); j++) {
             int edge = Random::RandInt(0, static_cast<int>(edges.size() - 1));
             Pos pos = edges[edge];
             edges.erase(edges.begin() + edge);
@@ -173,19 +147,23 @@ std::tuple<std::vector<std::vector<int>>, int> Randomizer2Core::CreateColorGrid(
     for (int x=0; x<p.width; x++) {
         colorGrid[x].resize(p.height);
         for (int y=0; y<p.height; y++) {
-            if (x%2 == 1 && y%2 == 1) continue;
             // Mark all unbroken edges and intersections as 'do not color'
-            if (p.grid[x][y].gap == Cell::Gap::NONE) colorGrid[x][y] = 1;
+            if (x%2 != y%2) {
+                if (p.grid[x][y].gap == Cell::Gap::NONE) colorGrid[x][y] = 1;
+            } else if (x%2 == 0 && y%2 == 0) {
+                // @Future: What about empty intersections?
+                colorGrid[x][y] = 1; // do not color intersections
+            }
         }
     }
 
     // @Future: Skip this loop if pillar = true;
-    for (int y=0; y<p.height; y++) {
+    for (int y=1; y<p.height; y+=2) {
         FloodFillOutside(p, colorGrid, 0, y);
         FloodFillOutside(p, colorGrid, p.width - 1, y);
     }
 
-    for (int x=0; x<p.width; x++) {
+    for (int x=1; x<p.width; x+=2) {
         FloodFillOutside(p, colorGrid, x, 0);
         FloodFillOutside(p, colorGrid, x, p.height - 1);
     }

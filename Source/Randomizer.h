@@ -1,4 +1,6 @@
 #pragma once
+#include "Memory.h"
+#include <memory>
 
 class Randomizer {
 public:

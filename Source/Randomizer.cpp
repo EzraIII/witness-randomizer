@@ -91,12 +91,14 @@ Things to do for V2:
  * 20 challenges with 20 consecutive seeds
  * Random *rotation* of desert laser redirect?
 */
-#include "pch.h"
+#include "Memory.h"
 #include "Randomizer.h"
 #include "ChallengeRandomizer.h"
 #include "Panels.h"
 #include "Random.h"
-
+#include <string>
+#include <iostream>
+#include <numeric>
 
 template <class T>
 int find(const std::vector<T> &data, T search, size_t startIndex = 0) {
@@ -127,28 +129,32 @@ void Randomizer::Randomize() {
     // Sig scans will be run during challenge randomization.
 
     // Seed challenge first for future-proofing
-    MEMORY_CATCH(RandomizeChallenge());
+    RandomizeChallenge();
 
     // Content swaps -- must happen before squarePanels
-    MEMORY_CATCH(Randomize(upDownPanels, SWAP::LINES | SWAP::COLORS));
-    MEMORY_CATCH(Randomize(leftForwardRightPanels, SWAP::LINES | SWAP::COLORS));
+    Randomize(upDownPanelsSetOne, SWAP::LINES | SWAP::COLORS);
+    Randomize(upDownPanelsSetTwo, SWAP::LINES | SWAP::COLORS);
+    Randomize(upDownPanelsSetThree, SWAP::LINES | SWAP::COLORS);
+    Randomize(upDownPanelsSetFour, SWAP::LINES | SWAP::COLORS);
+    Randomize(leftForwardRightPanelsSetOne, SWAP::LINES | SWAP::COLORS);
+    Randomize(leftForwardRightPanelsSetTwo, SWAP::LINES | SWAP::COLORS);
 
-    MEMORY_CATCH(Randomize(squarePanels, SWAP::LINES | SWAP::COLORS));
+    Randomize(squarePanels, SWAP::LINES | SWAP::COLORS);
 
     // Individual area modifications
-    MEMORY_CATCH(RandomizeTutorial());
-    MEMORY_CATCH(RandomizeDesert());
-    MEMORY_CATCH(RandomizeQuarry());
-    MEMORY_CATCH(RandomizeTreehouse());
-    MEMORY_CATCH(RandomizeKeep());
-    MEMORY_CATCH(RandomizeShadows());
-    MEMORY_CATCH(RandomizeMonastery());
-    MEMORY_CATCH(RandomizeBunker());
-    MEMORY_CATCH(RandomizeJungle());
-    MEMORY_CATCH(RandomizeSwamp());
-    MEMORY_CATCH(RandomizeMountain());
-    MEMORY_CATCH(RandomizeTown());
-    MEMORY_CATCH(RandomizeSymmetry());
+    RandomizeTutorial();
+    RandomizeDesert();
+    RandomizeQuarry();
+    RandomizeTreehouse();
+    RandomizeKeep();
+    RandomizeShadows();
+    RandomizeMonastery();
+    RandomizeBunker();
+    RandomizeJungle();
+    RandomizeSwamp();
+    RandomizeMountain();
+    RandomizeTown();
+    RandomizeSymmetry();
     // RandomizeAudioLogs();
 }
 
@@ -208,7 +214,6 @@ void Randomizer::RandomizeQuarry() {
 
 void Randomizer::RandomizeTreehouse() {
     // Ensure that whatever pivot panels we have are flagged as "pivotable"
-    // @Bug: Can return {}, be careful!
     int panelFlags = _memory->ReadEntityData<int>(0x17DD1, STYLE_FLAGS, 1)[0];
     _memory->WriteEntityData<int>(0x17DD1, STYLE_FLAGS, {panelFlags | 0x8000});
     panelFlags = _memory->ReadEntityData<int>(0x17CE3, STYLE_FLAGS, 1)[0];
@@ -248,8 +253,8 @@ void Randomizer::RandomizeTown() {
     // Ensure that we open the gate before the final puzzle (by swapping)
     int panel3Index = find(randomOrder, 3);
     int panel4Index = find(randomOrder, 4);
-    randomOrder[std::min(panel3Index, panel4Index)] = 3;
-    randomOrder[std::max(panel3Index, panel4Index)] = 4;
+    randomOrder[min(panel3Index, panel4Index)] = 3;
+    randomOrder[max(panel3Index, panel4Index)] = 4;
     ReassignTargets(orchard, randomOrder);
 }
 

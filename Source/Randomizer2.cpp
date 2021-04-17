@@ -1,18 +1,20 @@
-#include "pch.h"
+#include "Memory.h"
 #include "Randomizer2.h"
-#include "PuzzleSerializer.h"
 #include "Randomizer2Core.h"
+#include "Puzzle.h"
 #include "Random.h"
 #include "Solver.h"
-#include "Windows.h"
 
-Randomizer2::Randomizer2(const PuzzleSerializer& serializer) : _serializer(serializer) {
-}
+#include <cassert>
+#include <string>
+
+#pragma warning (disable: 26451)
+
+Randomizer2::Randomizer2(const std::shared_ptr<Memory>& memory) : _memory(memory), _serializer(PuzzleSerializer(_memory)) {}
 
 void Randomizer2::Randomize() {
-    // RandomizeTutorial();
-    // RandomizeGlassFactory();
-    RandomizeSymmetryIsland();
+    RandomizeTutorial();
+    RandomizeSymmetry();
     // RandomizeKeep();
 }
 
@@ -33,6 +35,7 @@ void Randomizer2::RandomizeTutorial() {
         Puzzle p;
         p.NewGrid(6, 6);
 
+        // @Bug: Mid-segment endpoints are not yet supported.
         int x = Random::RandInt(0, (p.width-1)/2)*2;
         int y = Random::RandInt(0, (p.height-1)/2)*2;
         int rng = Random::RandInt(1, 4);
@@ -91,24 +94,29 @@ void Randomizer2::RandomizeTutorial() {
         bool toTheRight;
         // Start by generating a cut line, to ensure one of the two startpoints is inaccessible
         int x, y;
-        switch (Random::RandInt(1, 4)) {
+        switch (Random::RandInt(1, 4))
+        {
             case 1:
-                x = 1; y = 1;
+                x = 1;
+                y = 1;
                 toTheRight = true;
                 cuts.emplace_back(0, 1);
                 break;
             case 2:
-                x = 1; y = 1;
+                x = 1;
+                y = 1;
                 toTheRight = true;
                 cuts.emplace_back(1, 0);
                 break;
             case 3:
-                x = 11; y = 1;
+                x = 11;
+                y = 1;
                 toTheRight = false;
                 cuts.emplace_back(12, 1);
                 break;
             case 4:
-                x = 11; y = 1;
+                x = 11;
+                y = 1;
                 toTheRight = false;
                 cuts.emplace_back(11, 0);
                 break;
@@ -128,7 +136,7 @@ void Randomizer2::RandomizeTutorial() {
                     }
                     break;
                 case 3: 
-                case 4: // Go down (biased x2)
+                case 4: // Go down (biased)
                     cuts.emplace_back(x, y+1);
                     y += 2;
                     break;
@@ -146,8 +154,9 @@ void Randomizer2::RandomizeTutorial() {
     }
 }
 
-void Randomizer2::RandomizeGlassFactory() {
-    { // Back wall 1
+void Randomizer2::RandomizeSymmetry() {
+    // Back wall
+    {
         Puzzle p;
         p.NewGrid(3, 3);
         p.symmetry = Puzzle::Symmetry::X;
@@ -164,7 +173,7 @@ void Randomizer2::RandomizeGlassFactory() {
         }
         _serializer.WritePuzzle(p, 0x86);
     }
-    { // Back wall 2
+    {
         Puzzle p;
         p.NewGrid(4, 4);
         p.symmetry = Puzzle::Symmetry::X;
@@ -172,304 +181,20 @@ void Randomizer2::RandomizeGlassFactory() {
         p.grid[8][8].start = true;
         p.grid[2][0].end = Cell::Dir::UP;
         p.grid[6][0].end = Cell::Dir::UP;
+        // @Bug: This can still make the puzzle unsolvable, if it leaves the centerline free -- even though two lines can't pass through the centerline.
+        // ^ Try seed = 13710
         std::vector<Pos> cutEdges = Randomizer2Core::CutSymmetricalEdgePairs(p, 4);
-        for (int i=0; i<cutEdges.size(); i++) {
+        for (int i=0; i<2; i++) {
             Pos pos = cutEdges[i];
-            if (i%2 == 0) {
-                p.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
-            } else {
-                Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
-                p.grid[sym.x][sym.y].gap = Cell::Gap::BREAK;
-            }
-        }
-
-        _serializer.WritePuzzle(p, 0x87);
-    }
-    { // Back wall 3
-        Puzzle p;
-        p.NewGrid(5, 6);
-        p.symmetry = Puzzle::Symmetry::X;
-        p.grid[2][10].start = true;
-        p.grid[8][10].start = true;
-        p.grid[4][0].end = Cell::Dir::UP;
-        p.grid[6][0].end = Cell::Dir::UP;
-        std::vector<Pos> cutEdges = Randomizer2Core::CutSymmetricalEdgePairs(p, 10);
-        for (int i=0; i<cutEdges.size(); i++) {
-            Pos pos = cutEdges[i];
-            if (i%2 == 0) {
-                p.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
-            } else {
-                Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
-                p.grid[sym.x][sym.y].gap = Cell::Gap::BREAK;
-            }
-        }
-
-        _serializer.WritePuzzle(p, 0x59);
-    }
-    { // Back wall 4
-        Puzzle p;
-        p.NewGrid(5, 8);
-        p.symmetry = Puzzle::Symmetry::X;
-        p.grid[2][16].start = true;
-        p.grid[8][16].start = true;
-        p.grid[4][0].end = Cell::Dir::UP;
-        p.grid[6][0].end = Cell::Dir::UP;
-        std::vector<Pos> cutEdges = Randomizer2Core::CutSymmetricalEdgePairs(p, 15);
-        for (int i=0; i<cutEdges.size(); i++) {
-            Pos pos = cutEdges[i];
-            if (i%2 == 0) {
-                p.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
-            } else {
-                Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
-                p.grid[sym.x][sym.y].gap = Cell::Gap::BREAK;
-            }
-        }
-
-        _serializer.WritePuzzle(p, 0x62);
-    }
-    // TODO: Positioning is off, slightly -- which means you can start from the bottom left, if you peek around.
-    { // Back wall 5
-        Puzzle p;
-        p.NewGrid(11, 8);
-        p.symmetry = Puzzle::Symmetry::X;
-        p.grid[0][16].start = true;
-        p.grid[10][16].start = true;
-        p.grid[12][16].start = true;
-        p.grid[22][16].start = true;
-        p.grid[2][0].end = Cell::Dir::UP;
-        p.grid[8][0].end = Cell::Dir::UP;
-        p.grid[14][0].end = Cell::Dir::UP;
-        p.grid[20][0].end = Cell::Dir::UP;
-
-        Puzzle q;
-        q.NewGrid(5, 8);
-        q.symmetry = Puzzle::Symmetry::X;
-
-        for (Pos pos : Randomizer2Core::CutSymmetricalEdgePairs(q, 16)) {
             p.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
         }
-        for (Pos pos : Randomizer2Core::CutSymmetricalEdgePairs(q, 16)) {
-            p.grid[pos.x + 12][pos.y].gap = Cell::Gap::BREAK;
-        }
-
-        for (int y=0; y<p.height; y+=2) {
-            p.grid[5][y].gap = Cell::Gap::BREAK;
-        }
-
-        _serializer.WritePuzzle(p, 0x5C);
-    }
-
-    { // Rotational 1
-        Puzzle p;
-        p.NewGrid(3, 3);
-        p.symmetry = Puzzle::Symmetry::XY;
-        p.grid[6][0].start = true;
-        p.grid[0][6].start = true;
-        p.grid[4][0].end = Cell::Dir::UP;
-        p.grid[2][6].end = Cell::Dir::DOWN;
-
-        p.grid[5][0].gap = Cell::Gap::BREAK;
-        p.grid[1][6].gap = Cell::Gap::BREAK;
-
-        for (Pos pos : Randomizer2Core::CutSymmetricalEdgePairs(p, 1)) {
-            p.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
+        for (int i=2; i<4; i++) {
+            Pos pos = cutEdges[i];
             Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
             p.grid[sym.x][sym.y].gap = Cell::Gap::BREAK;
         }
-        _serializer.WritePuzzle(p, 0x8D);
-    }
-    { // Rotational 2
-        Puzzle p;
-        p.NewGrid(3, 3);
-        p.symmetry = Puzzle::Symmetry::XY;
-        p.grid[6][0].start = true;
-        p.grid[0][6].start = true;
-        p.grid[4][0].end = Cell::Dir::UP;
-        p.grid[2][6].end = Cell::Dir::DOWN;
 
-        p.grid[5][0].gap = Cell::Gap::BREAK;
-        p.grid[1][6].gap = Cell::Gap::BREAK;
-
-        std::vector<Pos> cutEdges = Randomizer2Core::CutSymmetricalEdgePairs(p, 3);
-        for (int i=0; i<cutEdges.size(); i++) {
-            Pos pos = cutEdges[i];
-            if (i%2 == 0) {
-                p.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
-            } else {
-                Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
-                p.grid[sym.x][sym.y].gap = Cell::Gap::BREAK;
-            }
-        }
-
-        p.grid[1][6].gap = Cell::Gap::NONE;
-
-        _serializer.WritePuzzle(p, 0x81);
-    }
-    { // Rotational 3
-        Puzzle p;
-        p.NewGrid(4, 4);
-        p.symmetry = Puzzle::Symmetry::XY;
-        p.grid[8][0].start = true;
-        p.grid[0][8].start = true;
-        p.grid[0][0].end = Cell::Dir::LEFT;
-        p.grid[8][8].end = Cell::Dir::RIGHT;
-
-        std::vector<Pos> cutEdges = Randomizer2Core::CutSymmetricalEdgePairs(p, 7);
-        for (int i=0; i<cutEdges.size(); i++) {
-            Pos pos = cutEdges[i];
-            if (i%2 == 0) {
-                p.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
-            } else {
-                Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
-                p.grid[sym.x][sym.y].gap = Cell::Gap::BREAK;
-            }
-        }
-
-        _serializer.WritePuzzle(p, 0x83);
-    }
-    { // Melting
-        Puzzle p;
-        p.NewGrid(6, 6);
-        p.symmetry = Puzzle::Symmetry::XY;
-        p.grid[12][0].start = true;
-        p.grid[0][12].start = true;
-        p.grid[0][0].end = Cell::Dir::LEFT;
-        p.grid[12][12].end = Cell::Dir::RIGHT;
-        Puzzle q = p;
-
-        std::vector<Pos> cutEdges = Randomizer2Core::CutSymmetricalEdgePairs(p, 15);
-        for (int i=0; i<cutEdges.size(); i++) {
-            Pos pos = cutEdges[i];
-            Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
-
-            if (i%2 == 0) {
-                p.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
-            } else {
-                p.grid[sym.x][sym.y].gap = Cell::Gap::BREAK;
-            }
-
-            if (pos.x < sym.x) {
-                q.grid[pos.x][pos.y].gap = Cell::Gap::BREAK;
-            } else {
-                q.grid[sym.x][sym.y].gap = Cell::Gap::BREAK;
-            }
-        }
-
-        _serializer.WritePuzzle(p, 0x84); // Melting 1
-        _serializer.WritePuzzle(q, 0x82); // Melting 2
-        _serializer.WritePuzzle(q, 0x343A); // Melting 3
-    }
-}
-
-void Randomizer2::RandomizeSymmetryIsland() {
-    { // Entry door
-        Puzzle p;
-        p.NewGrid(4, 3);
-        p.grid[0][6].start = true;
-        p.grid[8][0].end = Cell::Dir::RIGHT;
-        p.grid[4][3].gap = Cell::Gap::FULL;
-
-        std::vector<Pos> corners;
-        std::vector<Pos> cells;
-        std::vector<Pos> edges;
-        for (int x=0; x<p.width; x++) {
-            for (int y=0; y<p.height; y++) {
-                if (x%2 == 0 && y%2 == 0) corners.emplace_back(Pos{x, y});
-                else if (x%2 == 1 && y%2 == 1) cells.emplace_back(Pos{x, y});
-                else edges.emplace_back(Pos{x, y});
-            }
-        }
-
-        for (int j=0;; j++) {
-            std::vector<Pos> dots = Random::SelectFromSet(edges, 4);
-            for (Pos pos : dots) p.grid[pos.x][pos.y].dot = Cell::Dot::BLACK;
-
-            auto solutions = Solver::Solve(p);
-            if (solutions.size() > 0 && solutions.size() < 10) break;
-
-            for (Pos pos : dots) p.grid[pos.x][pos.y].dot = Cell::Dot::NONE;
-        }
-
-        _serializer.WritePuzzle(p, 0xB0);
-    }
-
-    { // Dots 1
-        Puzzle p;
-        p.NewGrid(3, 3);
-        p.symmetry = Puzzle::Symmetry::Y;
-        p.grid[0][2].start = true;
-        p.grid[0][4].start = true;
-        p.grid[6][2].end = Cell::Dir::RIGHT;
-        p.grid[6][4].end = Cell::Dir::RIGHT;
-
-        std::vector<Pos> corners;
-        std::vector<Pos> cells;
-        std::vector<Pos> edges;
-        for (int x=0; x<p.width; x++) {
-            for (int y=0; y<p.height/2; y++) {
-                if (x%2 == 0 && y%2 == 0) corners.emplace_back(Pos{x, y});
-                else if (x%2 == 1 && y%2 == 1) cells.emplace_back(Pos{x, y});
-                else edges.emplace_back(Pos{x, y});
-            }
-        }
-        edges.insert(edges.end(), corners.begin(), corners.end());
-
-        std::vector<Pos> dots;
-        for (int j=0;; j++) {
-            dots = Random::SelectFromSet(edges, 3);
-            for (Pos pos : dots) p.grid[pos.x][pos.y].dot = Cell::Dot::BLACK;
-
-            auto solutions = Solver::Solve(p);
-            if (solutions.size() == 2) break;
-
-            for (Pos pos : dots) p.grid[pos.x][pos.y].dot = Cell::Dot::NONE;
-        }
-
-        for (Pos pos : dots) {
-            Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
-            p.grid[sym.x][sym.y].dot = Cell::Dot::BLACK;
-        }
-
-        _serializer.WritePuzzle(p, 0x22);
-    }
-    { // Dots 2
-        Puzzle p;
-        p.NewGrid(3, 3);
-        p.symmetry = Puzzle::Symmetry::Y;
-        p.grid[0][2].start = true;
-        p.grid[0][4].start = true;
-        p.grid[6][2].end = Cell::Dir::RIGHT;
-        p.grid[6][4].end = Cell::Dir::RIGHT;
-
-        std::vector<Pos> corners;
-        std::vector<Pos> cells;
-        std::vector<Pos> edges;
-        for (int x=0; x<p.width; x++) {
-            for (int y=0; y<p.height/2; y++) {
-                if (x%2 == 0 && y%2 == 0) corners.emplace_back(Pos{x, y});
-                else if (x%2 == 1 && y%2 == 1) cells.emplace_back(Pos{x, y});
-                else edges.emplace_back(Pos{x, y});
-            }
-        }
-        edges.insert(edges.end(), corners.begin(), corners.end());
-
-        std::vector<Pos> dots;
-        for (int j=0;; j++) {
-            dots = Random::SelectFromSet(edges, 3);
-            for (Pos pos : dots) p.grid[pos.x][pos.y].dot = Cell::Dot::BLACK;
-
-            auto solutions = Solver::Solve(p);
-            if (solutions.size() == 2) break;
-
-            for (Pos pos : dots) p.grid[pos.x][pos.y].dot = Cell::Dot::NONE;
-        }
-
-        Pos pos = dots[1];
-        Pos sym = p.GetSymmetricalPos(pos.x, pos.y);
-        p.grid[pos.x][pos.y].dot = Cell::Dot::NONE;
-        p.grid[sym.x][sym.y].dot = Cell::Dot::BLACK;
-
-        _serializer.WritePuzzle(p, 0x23);
+        _serializer.WritePuzzle(p, 0x87);
     }
 }
 
@@ -636,9 +361,9 @@ void Randomizer2::SetGate(int panel, int X, int Y) {
     }
 
     SetPos(panel, x, y, 19.2f);
-    // _memory->WriteEntityData<float>(panel, ORIENTATION, {0.0f, 0.0f, z, w});
+    _memory->WriteEntityData<float>(panel, ORIENTATION, {0.0f, 0.0f, z, w});
 }
 
 void Randomizer2::SetPos(int panel, float x, float y, float z) {
-    // _memory->WriteEntityData<float>(panel, POSITION, {x, y, z});
+    _memory->WriteEntityData<float>(panel, POSITION, {x, y, z});
 }
